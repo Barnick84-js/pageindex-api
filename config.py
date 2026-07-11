@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     pageindex_script: str = Field(default="run_pageindex.py", alias="PAGEINDEX_SCRIPT")
 
     allowed_extensions: Any = Field(
-        default=".pdf,.doc,.docx,.md",
+        default=".pdf,.doc,.docx,.md,.txt",
         alias="ALLOWED_EXTENSIONS",
     )
 
@@ -36,15 +36,16 @@ class Settings(BaseSettings):
     @classmethod
     def parse_extensions(cls, value: Any) -> list[str]:
         """Нормализует расширения к формату '.ext'."""
+        default = [".pdf", ".doc", ".docx", ".md", ".txt"]
         if value is None:
-            return [".pdf", ".doc", ".docx", ".md"]
+            return default
 
         if isinstance(value, list):
             raw_items = value
         else:
             text = str(value).strip()
             if not text:
-                return [".pdf", ".doc", ".docx", ".md"]
+                return default
 
             text = text.replace("[", "").replace("]", "").replace('"', "").replace("'", "")
             raw_items = [part.strip() for part in text.split(",") if part.strip()]
@@ -58,7 +59,7 @@ class Settings(BaseSettings):
                 extension = f".{extension}"
             normalized.append(extension)
 
-        return normalized or [".pdf", ".doc", ".docx", ".md"]
+        return normalized or default
 
     @property
     def has_openai_key(self) -> bool:

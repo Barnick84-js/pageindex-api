@@ -441,6 +441,23 @@ async def list_registry():
     return load_registry()
 
 
+@app.get("/documents/{doc_id}/index")
+async def get_document_index(doc_id: str):
+    """Возвращает полный индекс документа (структура, секции, таблицы, изображения)."""
+    file_path = Path(settings.data_dir) / f"{doc_id}.json"
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Документ не найден")
+    try:
+        data = json.loads(file_path.read_text(encoding="utf-8"))
+        return {
+            "doc_id": doc_id,
+            "document_index": data.get("document_index"),
+            "structure": data.get("structure"),
+        }
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Ошибка чтения индекса документа")
+
+
 @app.post("/search")
 async def search_doc(request: SearchRequest):
     file_path = Path(settings.data_dir) / f"{request.doc_id}.json"

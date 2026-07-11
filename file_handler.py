@@ -59,6 +59,7 @@ class FileHandler:
             ".doc": "doc",
             ".docx": "docx",
             ".md": "md",
+            ".txt": "txt",
         }
         self.pageindex_model = os.getenv("PAGEINDEX_MODEL", "gpt-4o-2024-11-20")
         # Увеличиваем проверку оглавления до 50 страниц для сложных документов
@@ -101,6 +102,8 @@ class FileHandler:
         extension = source_path.suffix.lower()
         if extension == ".md":
             result = await asyncio.to_thread(self._process_markdown, source_path)
+        elif extension == ".txt":
+            result = await asyncio.to_thread(self._process_text, source_path)
         elif extension in {".doc", ".docx"}:
             result = await asyncio.to_thread(self._process_word_document, source_path)
         elif extension == ".pdf":
@@ -325,6 +328,44 @@ class FileHandler:
             nodes.append(node)
         
         return nodes
+
+    def _process_text(self, txt_path: Path) -> dict[str, Any]:
+        """Индексирует plain text файл: читает текст и создаёт простую структуру."""
+        text = txt_path.read_text(encoding="utf-8", errors="replace").strip()
+        if not text:
+            text = txt_path.read_text(encoding="cp1251", errors="replace").strip()
+        structure = []
+        lines = text.split("\n")
+        paragraphs = []
+        current = []
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                if current:
+                    paragraphs.append("\n".join(current))
+                    current = []
+            else:
+                current.append(stripped)
+        if current:
+            paragraphs.append("\n".join(current))
+
+        for i, para in enumerate(paragraphs, start=1):
+            node_id = f"txt_block_{i:04d}"
+            node = {
+                "title": f"Блок {i}",
+                "node_id": node_id,
+                "text": para,
+                "text_preview": para[:300] + "..." if len(para) > 300 else para,
+                "nodes": [],
+                "source_type": "txt_block",
+            }
+            structure.append(node)
+
+        return {
+            "doc_name": txt_path.name,
+            "doc_description": "Plain text file",
+            "structure": structure,
+        }
 
     def _process_markdown(self, md_path: Path) -> dict[str, Any]:
         """Индексирует Markdown через официальный md_to_tree workflow."""
