@@ -396,10 +396,17 @@ class FileHandler:
             return self._process_pdf(converted_pdf)
 
     def _convert_to_pdf(self, source_path: Path, output_dir: Path) -> Path:
-        """Конвертирует Word-документ в PDF через LibreOffice."""
+        """Конвертирует Word-документ в PDF через LibreOffice.
+
+        Используется изолированный UserInstallation: при параллельных задачах
+        общий профиль LibreOffice блокируется и конвертация зависает.
+        """
+        profile_dir = output_dir / "lo_profile"
         command = [
             "soffice",
             "--headless",
+            "--norestore",
+            f"-env:UserInstallation={profile_dir.as_uri()}",
             "--convert-to",
             "pdf",
             "--outdir",
@@ -430,7 +437,10 @@ class FileHandler:
 
         converted_pdf = output_dir / f"{source_path.stem}.pdf"
         if not converted_pdf.exists():
-            raise RuntimeError("LibreOffice не создал PDF-файл для индексации")
+            matches = [p for p in output_dir.glob("*.pdf") if p.is_file()]
+            if not matches:
+                raise RuntimeError("LibreOffice не создал PDF-файл для индексации")
+            converted_pdf = matches[0]
 
         return converted_pdf
 
